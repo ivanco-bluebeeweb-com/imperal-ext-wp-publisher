@@ -1,0 +1,729 @@
+{
+  "manifest_schema_version": 3,
+  "sdk_version": "5.9.4",
+  "app_id": "wp-publisher",
+  "version": "1.0.0",
+  "name": "WP Publisher",
+  "description": "Turns structured .docx articles into ready-to-review WordPress drafts: Gutenberg blocks, Rank Math SEO fields, Polylang language — and learns formatting rules from the user's confirmations.",
+  "icon": "icon.svg",
+  "actions_explicit": true,
+  "system": false,
+  "capabilities": [],
+  "tools": [
+    {
+      "name": "parse_article",
+      "description": "Parse a structured .docx article into title, body, SEO fields and images, reporting anything that needs a human answer.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "filename": {
+            "description": "Original .docx file name, e.g. 'article.docx'",
+            "title": "Filename",
+            "type": "string"
+          },
+          "file_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base64-encoded .docx content (use when the file came through chat/panel)",
+            "title": "File B64"
+          },
+          "storage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ctx.storage path of an already-uploaded .docx (alternative to file_b64)",
+            "title": "Storage Path"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "title": "ParseArticleParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "Result of parsing one document: what was found and what needs a human answer.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "slug": {
+            "default": "",
+            "title": "Slug",
+            "type": "string"
+          },
+          "language": {
+            "default": "",
+            "title": "Language",
+            "type": "string"
+          },
+          "category": {
+            "default": "",
+            "title": "Category",
+            "type": "string"
+          },
+          "heading_candidates": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Heading Candidates",
+            "type": "array"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ParseReport",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "wp_publisher"
+    },
+    {
+      "name": "confirm_mapping",
+      "description": "Record the user's confirmation (or rejection) of a parsing rule; after 3 confirmations the rule goes auto and the question disappears.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:rule"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "rule_key": {
+            "description": "Rule being confirmed, e.g. 'subheading_heuristic'",
+            "title": "Rule Key",
+            "type": "string"
+          },
+          "accepted": {
+            "default": true,
+            "description": "True if the user confirmed the rule, False if rejected",
+            "title": "Accepted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rule_key"
+        ],
+        "title": "ConfirmMappingParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "State of one learned parsing rule.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "rule_key": {
+            "default": "",
+            "title": "Rule Key",
+            "type": "string"
+          },
+          "confirmations": {
+            "default": 0,
+            "title": "Confirmations",
+            "type": "integer"
+          },
+          "auto": {
+            "default": false,
+            "title": "Auto",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "RuleRecord",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "rule_confirmed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "wp_publisher"
+    },
+    {
+      "name": "publish_draft",
+      "description": "Create a WordPress draft from a parsed article: Gutenberg content, Rank Math SEO meta, Polylang language, category.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:post"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "slug": {
+            "description": "Slug of a previously parsed article to publish",
+            "title": "Slug",
+            "type": "string"
+          },
+          "resolved_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Real publication date (YYYY-MM-DD) when the document had a placeholder like 2026-07-XX",
+            "title": "Resolved Date"
+          },
+          "headings_confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "User's decision on the detected subheadings; omit if the rule is already in auto mode",
+            "title": "Headings Confirmed"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "PublishDraftParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "One parsed or published article.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "slug": {
+            "default": "",
+            "title": "Slug",
+            "type": "string"
+          },
+          "language": {
+            "default": "",
+            "title": "Language",
+            "type": "string"
+          },
+          "category": {
+            "default": "",
+            "title": "Category",
+            "type": "string"
+          },
+          "warnings_count": {
+            "default": 0,
+            "title": "Warnings Count",
+            "type": "integer"
+          },
+          "wp_post_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wp Post Id"
+          },
+          "wp_link": {
+            "default": "",
+            "title": "Wp Link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ArticleRecord",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "draft_created",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "wp_publisher"
+    },
+    {
+      "name": "list_articles",
+      "description": "List parsed and published articles with their statuses.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by status: 'parsed' or 'published'",
+            "title": "Status"
+          }
+        },
+        "title": "ListArticlesParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "ArticleRecord": {
+            "description": "One parsed or published article.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "slug": {
+                "default": "",
+                "title": "Slug",
+                "type": "string"
+              },
+              "language": {
+                "default": "",
+                "title": "Language",
+                "type": "string"
+              },
+              "category": {
+                "default": "",
+                "title": "Category",
+                "type": "string"
+              },
+              "warnings_count": {
+                "default": 0,
+                "title": "Warnings Count",
+                "type": "integer"
+              },
+              "wp_post_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Wp Post Id"
+              },
+              "wp_link": {
+                "default": "",
+                "title": "Wp Link",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "ArticleRecord",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/ArticleRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ArticleList",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "wp_publisher"
+    }
+  ],
+  "signals": [],
+  "schedules": [],
+  "required_scopes": [],
+  "icon_size_bytes": 423,
+  "lifecycle": {
+    "on_install": true,
+    "health_check": {
+      "interval_sec": 60
+    }
+  },
+  "lifecycle_hooks": {
+    "on_install": {
+      "signature": "(ctx)"
+    }
+  },
+  "secrets": [
+    {
+      "name": "wp_base_url",
+      "description": "WordPress site URL (https://example.com)",
+      "required": true,
+      "write_mode": "both",
+      "max_bytes": 4096
+    },
+    {
+      "name": "wp_user",
+      "description": "WordPress username the Application Password belongs to",
+      "required": true,
+      "write_mode": "both",
+      "max_bytes": 4096
+    },
+    {
+      "name": "wp_app_password",
+      "description": "WordPress Application Password (Users → Profile → Application Passwords)",
+      "required": true,
+      "write_mode": "user",
+      "max_bytes": 4096
+    }
+  ],
+  "panels": [
+    {
+      "panel_id": "secrets",
+      "slot": "right",
+      "title": "Secrets",
+      "tree": {}
+    },
+    {
+      "panel_id": "publications",
+      "slot": "center",
+      "title": "Publications",
+      "tree": {}
+    }
+  ]
+}
