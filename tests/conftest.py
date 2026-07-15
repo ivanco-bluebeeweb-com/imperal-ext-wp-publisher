@@ -1,10 +1,11 @@
 import io
 import os
 import sys
+import zipfile
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 SAMPLE_PARAGRAPHS = [
@@ -50,15 +51,26 @@ SAMPLE_PARAGRAPHS = [
 ]
 
 
-def make_docx_bytes(paragraphs: list[str]) -> bytes:
-    """Build a real .docx in memory (python-docx is a dev-only dependency)."""
-    import docx  # noqa: PLC0415
+_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
-    document = docx.Document()
-    for text in paragraphs:
-        document.add_paragraph(text)
+
+def make_docx_bytes(paragraphs: list[str]) -> bytes:
+    """Build a minimal .docx in memory — stdlib only, matching exactly what
+    docx_parser.paragraphs_from_docx_bytes() reads (word/document.xml with
+    w:p/w:t runs), so tests don't need an extra dependency to produce fixtures."""
+    import xml.sax.saxutils as saxutils
+
+    body = "".join(
+        f'<w:p><w:r><w:t xml:space="preserve">{saxutils.escape(text)}</w:t></w:r></w:p>'
+        for text in paragraphs
+    )
+    document_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{_W}"><w:body>{body}</w:body></w:document>'
+    )
     buf = io.BytesIO()
-    document.save(buf)
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("word/document.xml", document_xml)
     return buf.getvalue()
 
 

@@ -1,6 +1,6 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.9.4",
+  "sdk_version": "5.9.6",
   "app_id": "wp-publisher",
   "version": "1.0.0",
   "name": "WP Publisher",
@@ -695,21 +695,24 @@
       "description": "WordPress site URL (https://example.com)",
       "required": true,
       "write_mode": "both",
-      "max_bytes": 4096
+      "max_bytes": 4096,
+      "scope": "user"
     },
     {
       "name": "wp_user",
       "description": "WordPress username the Application Password belongs to",
       "required": true,
       "write_mode": "both",
-      "max_bytes": 4096
+      "max_bytes": 4096,
+      "scope": "user"
     },
     {
       "name": "wp_app_password",
       "description": "WordPress Application Password (Users → Profile → Application Passwords)",
       "required": true,
       "write_mode": "user",
-      "max_bytes": 4096
+      "max_bytes": 4096,
+      "scope": "user"
     }
   ],
   "panels": [
@@ -717,13 +720,19 @@
       "panel_id": "secrets",
       "slot": "right",
       "title": "Secrets",
-      "tree": {}
+      "tree": {},
+      "icon": "KeyRound",
+      "refresh": "manual",
+      "center_overlay": false
     },
     {
       "panel_id": "publications",
       "slot": "center",
       "title": "Publications",
-      "tree": {}
+      "tree": {},
+      "icon": "Newspaper",
+      "refresh": "manual",
+      "center_overlay": true
     }
   ]
 }
