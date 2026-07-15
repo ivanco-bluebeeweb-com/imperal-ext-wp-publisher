@@ -26,23 +26,29 @@ from app import ext
 
 def _decode_upload(files) -> list[tuple[str, bytes]]:
     """The panel host merges base64 file data under param_name; the exact shape
-    (str / dict / list) is host-version dependent, so accept all of them."""
+    (str / dict / list) is host-version dependent, so accept all of them.
+
+    Raises ValueError with the entry's shape (type + keys) when no known key
+    holds the payload — that description is surfaced to the user instead of a
+    silently-skipped upload, since the exact host shape can't be verified
+    ahead of time from this codebase alone."""
     entries = files if isinstance(files, list) else [files]
     out: list[tuple[str, bytes]] = []
     for entry in entries:
         if isinstance(entry, dict):
             name = entry.get("name") or entry.get("filename") or "article.docx"
-            b64 = entry.get("data") or entry.get("content") or entry.get("b64") or ""
+            b64 = (entry.get("data") or entry.get("content") or entry.get("b64")
+                   or entry.get("base64") or entry.get("file") or "")
         elif isinstance(entry, str):
             name, b64 = "article.docx", entry
         else:
-            continue
+            raise ValueError(f"unrecognized upload entry type: {type(entry).__name__}")
         if "," in b64 and b64.lstrip().startswith("data:"):
             b64 = b64.split(",", 1)[1]
-        try:
-            out.append((name, base64.b64decode(b64)))
-        except Exception:
-            continue
+        if not b64:
+            keys = sorted(entry.keys()) if isinstance(entry, dict) else None
+            raise ValueError(f"no base64 payload found (entry type={type(entry).__name__}, keys={keys})")
+        out.append((name, base64.b64decode(b64)))
     return out
 
 
@@ -52,18 +58,22 @@ async def publications(ctx, **kwargs):
     """Render the publications overview; also handles .docx uploads."""
     alert = None
     if kwargs.get("files"):
-        parsed, failed = 0, 0
-        for name, data in _decode_upload(kwargs["files"]):
+        parsed, errors = 0, []
+        try:
+            decoded = _decode_upload(kwargs["files"])
+        except Exception as e:
+            decoded, errors = [], [f"{type(e).__name__}: {e}"]
+        for name, data in decoded:
             try:
                 await handlers.ingest_document(ctx, data, name)
                 parsed += 1
-            except Exception:
-                failed += 1
-        if parsed and not failed:
+            except Exception as e:
+                errors.append(f"{name}: {type(e).__name__}: {e}")
+        if parsed and not errors:
             alert = ui.Alert(message=f"Parsed {parsed} document(s).", type="success")
-        elif failed:
+        elif errors:
             alert = ui.Alert(
-                message=f"Parsed {parsed}, failed {failed} — are these structured .docx files?",
+                message=f"Parsed {parsed}, failed {len(errors)} — " + "; ".join(errors),
                 type="error" if not parsed else "warn")
 
     page = await ctx.store.query(handlers.ARTICLES_COLLECTION, limit=100)
