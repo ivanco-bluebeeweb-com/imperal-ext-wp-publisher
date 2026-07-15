@@ -110,6 +110,24 @@ async def test_publish_reports_network_failure_instead_of_crashing(ctx, sample_d
     assert "climtec.md" in result.error
 
 
+async def test_publish_reports_non_json_response_instead_of_crashing(ctx, sample_docx_bytes):
+    # A 2xx status with a body that isn't valid JSON — e.g. a PHP warning/notice
+    # printed before the REST API output — must not raise json.JSONDecodeError.
+    from imperal_sdk.types.models import HTTPResponse
+
+    await _parse(ctx, sample_docx_bytes)
+    await _set_secrets(ctx)
+
+    async def _garbled_post(url, **kwargs):
+        return HTTPResponse(status_code=201, body="<b>Warning</b>{\"id\":123}", headers={})
+    ctx.http.post = _garbled_post
+
+    result = await handlers.publish_draft(ctx, PublishDraftParams(
+        slug=SLUG, resolved_date="2026-07-20", headings_confirmed=True))
+    assert result.status == "error"
+    assert "valid JSON" in result.error
+
+
 async def test_publish_requires_credentials(ctx, sample_docx_bytes):
     await _parse(ctx, sample_docx_bytes)
     result = await handlers.publish_draft(ctx, PublishDraftParams(

@@ -84,7 +84,15 @@ async def create_draft(ctx, base_url: str, headers: dict, *, title: str, slug: s
         return {"ok": False, "error": f"Could not reach WordPress at {base_url} ({type(e).__name__}: {e})."}
     if resp.status_code >= 400:
         return {"ok": False, "error": wp_error_message(resp.status_code)}
-    post = resp.json() if not isinstance(resp.body, dict) else resp.body
+    try:
+        post = resp.json() if not isinstance(resp.body, dict) else resp.body
+    except Exception:
+        return {"ok": False, "error": (
+            "WordPress returned a 2xx status but the response body wasn't valid JSON — "
+            "a plugin or theme is likely printing a PHP warning/notice before the REST "
+            "API output. Check the site's PHP error log.")}
+    if not isinstance(post, dict):
+        return {"ok": False, "error": "WordPress returned an unexpected response shape for the created post."}
     return {"ok": True, "post": post}
 
 
