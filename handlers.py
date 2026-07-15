@@ -212,9 +212,15 @@ async def publish_draft(ctx, params: PublishDraftParams) -> ActionResult:
         return ActionResult.error(result["error"], retryable=True)
 
     post = result["post"]
-    record.update(status="published", wp_post_id=post.get("id"),
-                  wp_link=post.get("link", ""), warnings=[])
-    await ctx.store.update(ARTICLES_COLLECTION, doc.id, record)
+    try:
+        record.update(status="published", wp_post_id=post.get("id"),
+                      wp_link=post.get("link", ""), warnings=[])
+        await ctx.store.update(ARTICLES_COLLECTION, doc.id, record)
+    except Exception:
+        # The WordPress draft already exists at this point — a failure here is
+        # our own bookkeeping, not something that should make the user think
+        # publishing itself failed and retry (creating a duplicate draft).
+        pass
 
     out = ArticleRecord(
         id=params.slug, title=article["h1"], slug=params.slug,

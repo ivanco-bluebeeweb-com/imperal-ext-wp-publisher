@@ -128,6 +128,23 @@ async def test_publish_reports_non_json_response_instead_of_crashing(ctx, sample
     assert "valid JSON" in result.error
 
 
+async def test_publish_succeeds_even_if_local_bookkeeping_fails(ctx, sample_docx_bytes):
+    # The WordPress draft is already created by this point — a failure saving
+    # our own record afterward must not be reported as a publish failure.
+    await _parse(ctx, sample_docx_bytes)
+    await _set_secrets(ctx)
+    _configure_wp(ctx)
+
+    async def _raise_update(*args, **kwargs):
+        raise RuntimeError("store unavailable")
+    ctx.store.update = _raise_update
+
+    result = await handlers.publish_draft(ctx, PublishDraftParams(
+        slug=SLUG, resolved_date="2026-07-20", headings_confirmed=True))
+    assert result.status == "success", result.error
+    assert result.data.wp_post_id == 123
+
+
 async def test_publish_requires_credentials(ctx, sample_docx_bytes):
     await _parse(ctx, sample_docx_bytes)
     result = await handlers.publish_draft(ctx, PublishDraftParams(
