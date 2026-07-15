@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from datetime import datetime, timezone
 
@@ -157,14 +158,24 @@ async def publish_draft(ctx, params: PublishDraftParams) -> ActionResult:
     with no detail, so any bug here must be diagnosable from the returned
     ActionResult alone rather than from platform logs we don't have access to.
     """
+    await ctx.log(f"publish_draft: start slug={params.slug!r}")
     try:
-        return await _publish_draft_impl(ctx, params)
+        result = await _publish_draft_impl(ctx, params)
+    except asyncio.CancelledError:
+        # A plain `except Exception` would never see this — CancelledError is
+        # a BaseException. If the platform enforces an execution timeout and
+        # this coroutine gets cancelled mid-flight, that's invisible from our
+        # returned ActionResult (there is none), so log before re-raising.
+        await ctx.log("publish_draft: cancelled mid-flight (platform timeout?)", level="error")
+        raise
     except Exception as e:
         import traceback
+        tb = traceback.format_exc(limit=6)
+        await ctx.log(f"publish_draft: crashed: {type(e).__name__}: {e}\n{tb}", level="error")
         return ActionResult.error(
-            f"publish_draft crashed: {type(e).__name__}: {e}\n"
-            f"{traceback.format_exc(limit=6)}",
-            retryable=True)
+            f"publish_draft crashed: {type(e).__name__}: {e}\n{tb}", retryable=True)
+    await ctx.log(f"publish_draft: impl returned status={result.status!r}")
+    return result
 
 
 async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
@@ -220,11 +231,13 @@ async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
         "rank_math_description": seo.get("meta_description", ""),
         "rank_math_focus_keyword": seo.get("focus_keyword", ""),
     }
+    await ctx.log(f"publish_draft: posting draft to {base_url} (category_id={category_id}, lang={lang})")
     result = await wp_client.create_draft(
         ctx, base_url, headers,
         title=article["h1"], slug=params.slug, content=content,
         meta=meta, category_id=category_id, lang=lang, date=publish_date,
     )
+    await ctx.log(f"publish_draft: create_draft ok={result['ok']}")
     if not result["ok"]:
         return ActionResult.error(result["error"], retryable=True)
 
