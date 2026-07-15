@@ -7,6 +7,7 @@ import base64
 from imperal_sdk import ui
 
 import handlers
+import wp_client
 from app import ext
 
 # SKETCH — publications panel (each component verified against PRE-PANEL CHECKLIST)
@@ -50,6 +51,19 @@ def _decode_upload(files) -> list[tuple[str, bytes]]:
             raise ValueError(f"no base64 payload found (entry type={type(entry).__name__}, keys={keys})")
         out.append((name, base64.b64decode(b64)))
     return out
+
+
+async def _connection_badge(ctx):
+    """Show which WordPress site publish_draft will target — wp_base_url is a
+    plain site URL, not a credential, so it's safe to surface here."""
+    base_url = await ctx.secrets.get("wp_base_url")
+    if not base_url:
+        return ui.Badge(label="Not connected — set WordPress credentials in Secrets", color="red")
+    try:
+        site = wp_client.normalize_base_url(base_url)
+    except ValueError:
+        site = base_url
+    return ui.Badge(label=f"Connected: {site}", color="green")
 
 
 @ext.panel("publications", slot="center", title="Publications", icon="Newspaper",
@@ -108,6 +122,7 @@ async def publications(ctx, **kwargs):
     children = [
         ui.Header(text="WP Publisher", level=2,
                   subtitle="Structured .docx → WordPress draft with SEO fields"),
+        await _connection_badge(ctx),
     ]
     if alert:
         children.append(alert)

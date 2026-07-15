@@ -1,6 +1,7 @@
 import base64
 
 import pytest
+from imperal_sdk.testing import MockSecretStore
 
 import handlers
 import panels
@@ -44,6 +45,18 @@ def test_decode_upload_raises_on_unknown_shape():
 
 async def test_panel_reports_upload_error_instead_of_silently_dropping(ctx):
     node = await panels.publications(ctx, files=[{"name": "x.docx", "url": "https://example.com/x.docx"}])
-    alert = node.props["children"][1]
+    alert = node.props["children"][2]
     assert alert.type == "Alert"
     assert "no base64 payload found" in alert.props["message"]
+
+
+async def test_panel_shows_connection_status(ctx):
+    node = await panels.publications(ctx)
+    badge = node.props["children"][1]
+    assert badge.type == "Badge"
+    assert "Not connected" in badge.props["label"]
+
+    ctx.secrets = MockSecretStore({"wp_base_url": "https://climtec.md"})
+    node = await panels.publications(ctx)
+    badge = node.props["children"][1]
+    assert badge.props["label"] == "Connected: https://climtec.md"
