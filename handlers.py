@@ -150,7 +150,24 @@ async def confirm_mapping(ctx, params: ConfirmMappingParams) -> ActionResult:
     data_model=ArticleRecord,
 )
 async def publish_draft(ctx, params: PublishDraftParams) -> ActionResult:
-    """Publish a previously parsed article to WordPress as a draft."""
+    """Publish a previously parsed article to WordPress as a draft.
+
+    Wrapped in a blanket try/except: an uncaught exception anywhere in this
+    flow surfaces to the user as Imperal Cloud's generic internal-error page
+    with no detail, so any bug here must be diagnosable from the returned
+    ActionResult alone rather than from platform logs we don't have access to.
+    """
+    try:
+        return await _publish_draft_impl(ctx, params)
+    except Exception as e:
+        import traceback
+        return ActionResult.error(
+            f"publish_draft crashed: {type(e).__name__}: {e}\n"
+            f"{traceback.format_exc(limit=6)}",
+            retryable=True)
+
+
+async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
     doc = await _find_article_doc(ctx, params.slug)
     if doc is None:
         return ActionResult.error(f"No parsed article with slug '{params.slug}'. Run parse_article first.")

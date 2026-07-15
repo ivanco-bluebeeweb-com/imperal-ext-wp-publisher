@@ -145,6 +145,25 @@ async def test_publish_succeeds_even_if_local_bookkeeping_fails(ctx, sample_docx
     assert result.data.wp_post_id == 123
 
 
+async def test_publish_reports_unexpected_crash_instead_of_propagating(ctx, sample_docx_bytes):
+    # Any exception this repo's authors didn't anticipate must still come back
+    # as a diagnosable ActionResult, not bubble up into Imperal Cloud's opaque
+    # "something went wrong on our side" page.
+    await _parse(ctx, sample_docx_bytes)
+    await _set_secrets(ctx)
+    _configure_wp(ctx)
+
+    async def _raise_secrets_get(key):
+        raise RuntimeError("boom — anything unanticipated")
+    ctx.secrets.get = _raise_secrets_get
+
+    result = await handlers.publish_draft(ctx, PublishDraftParams(
+        slug=SLUG, resolved_date="2026-07-20", headings_confirmed=True))
+    assert result.status == "error"
+    assert "crashed" in result.error
+    assert "RuntimeError" in result.error
+
+
 async def test_publish_requires_credentials(ctx, sample_docx_bytes):
     await _parse(ctx, sample_docx_bytes)
     result = await handlers.publish_draft(ctx, PublishDraftParams(
