@@ -38,12 +38,18 @@ def wp_error_message(status_code: int) -> str:
 
 async def find_category_id(ctx, base_url: str, headers: dict, name: str,
                            lang: str | None = None) -> int | None:
-    """Resolve a category name to its term id (case-insensitive exact match)."""
+    """Resolve a category name to its term id (case-insensitive exact match).
+
+    Unreachable site / network errors are treated the same as "not found" —
+    the caller already falls back to publishing without a category."""
     params = {"search": name, "per_page": 100}
     if lang:
         params["lang"] = lang
-    resp = await ctx.http.get(f"{base_url}/wp-json/wp/v2/categories",
-                              headers=headers, params=params)
+    try:
+        resp = await ctx.http.get(f"{base_url}/wp-json/wp/v2/categories",
+                                  headers=headers, params=params)
+    except Exception:
+        return None
     if resp.status_code >= 400 or not isinstance(resp.body, list):
         return None
     wanted = name.strip().lower()
@@ -72,7 +78,10 @@ async def create_draft(ctx, base_url: str, headers: dict, *, title: str, slug: s
     if lang:
         # Polylang reads the language from the query string on create
         url = f"{url}?lang={lang}"
-    resp = await ctx.http.post(url, headers=headers, json=payload)
+    try:
+        resp = await ctx.http.post(url, headers=headers, json=payload)
+    except Exception as e:
+        return {"ok": False, "error": f"Could not reach WordPress at {base_url} ({type(e).__name__}: {e})."}
     if resp.status_code >= 400:
         return {"ok": False, "error": wp_error_message(resp.status_code)}
     post = resp.json() if not isinstance(resp.body, dict) else resp.body

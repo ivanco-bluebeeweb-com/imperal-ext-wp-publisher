@@ -96,6 +96,20 @@ async def test_publish_auto_headings_after_training(ctx, sample_docx_bytes):
     assert result.status == "success", result.error
 
 
+async def test_publish_reports_network_failure_instead_of_crashing(ctx, sample_docx_bytes):
+    await _parse(ctx, sample_docx_bytes)
+    await _set_secrets(ctx)
+
+    async def _raise_post(url, **kwargs):
+        raise ConnectionError("Connection refused")
+    ctx.http.post = _raise_post
+
+    result = await handlers.publish_draft(ctx, PublishDraftParams(
+        slug=SLUG, resolved_date="2026-07-20", headings_confirmed=True))
+    assert result.status == "error"
+    assert "climtec.md" in result.error
+
+
 async def test_publish_requires_credentials(ctx, sample_docx_bytes):
     await _parse(ctx, sample_docx_bytes)
     result = await handlers.publish_draft(ctx, PublishDraftParams(
