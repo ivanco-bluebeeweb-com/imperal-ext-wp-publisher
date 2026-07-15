@@ -111,3 +111,5 @@ async def test_list_articles(ctx, sample_docx_bytes):
     assert result.data.total == 1
     assert result.data.items[0].slug == SLUG
     assert result.data.items[0].warnings_count == 2
+    assert len(result.data.items[0].warnings) == 2
+    assert any("placeholder" in w for w in result.data.items[0].warnings)

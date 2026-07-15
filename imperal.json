@@ -444,6 +444,14 @@
             "title": "Warnings Count",
             "type": "integer"
           },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
           "wp_post_id": {
             "anyOf": [
               {
@@ -478,7 +486,7 @@
     },
     {
       "name": "list_articles",
-      "description": "List parsed and published articles with their statuses.",
+      "description": "List parsed and published articles with their statuses, including the full text of any open questions (warnings) that must be resolved before publishing.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -594,6 +602,14 @@
                 "default": 0,
                 "title": "Warnings Count",
                 "type": "integer"
+              },
+              "warnings": {
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "title": "Warnings",
+                "type": "array"
               },
               "wp_post_id": {
                 "anyOf": [

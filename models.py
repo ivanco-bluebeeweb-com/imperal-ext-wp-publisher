@@ -39,6 +39,7 @@ class ArticleRecord(sdl.Entity):
     language: str = ""
     category: str = ""
     warnings_count: int = 0
+    warnings: list[str] = []
     wp_post_id: int | None = None
     wp_link: str = ""
 

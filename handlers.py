@@ -228,7 +228,7 @@ async def publish_draft(ctx, params: PublishDraftParams) -> ActionResult:
 @chat.function(
     "list_articles",
     action_type="read",
-    description="List parsed and published articles with their statuses.",
+    description="List parsed and published articles with their statuses, including the full text of any open questions (warnings) that must be resolved before publishing.",
     data_model=ArticleList,
 )
 async def list_articles(ctx, params: ListArticlesParams) -> ActionResult:
@@ -239,11 +239,12 @@ async def list_articles(ctx, params: ListArticlesParams) -> ActionResult:
         r = d.data
         if params.status and r.get("status") != params.status:
             continue
+        warnings = [w["message"] for w in r.get("warnings", [])]
         items.append(ArticleRecord(
             id=r["id"], title=r["article"]["h1"] or r["filename"], slug=r["id"],
             language=r["article"]["seo"].get("language", ""),
             category=r["article"]["seo"].get("category", ""),
-            warnings_count=len(r.get("warnings", [])),
+            warnings_count=len(warnings), warnings=warnings,
             wp_post_id=r.get("wp_post_id"), wp_link=r.get("wp_link", ""),
             status=r.get("status", ""),
         ))
