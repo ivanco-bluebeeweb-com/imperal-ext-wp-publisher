@@ -29,6 +29,14 @@ def test_decode_upload_tolerates_shapes():
         ("article.docx", b"hello")]
 
 
+def test_decode_upload_handles_real_panel_host_shape():
+    # Confirmed production shape from Imperal Cloud's FileUpload component.
+    b64 = base64.b64encode(b"hello").decode()
+    entry = {"data_base64": b64, "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "name": "x.docx", "size": 5}
+    assert panels._decode_upload(entry) == [("x.docx", b"hello")]
+
+
 def test_decode_upload_raises_on_unknown_shape():
     with pytest.raises(ValueError, match="no base64 payload found"):
         panels._decode_upload({"name": "x.docx", "url": "https://example.com/x.docx"})

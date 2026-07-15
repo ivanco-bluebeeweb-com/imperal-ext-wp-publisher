@@ -37,8 +37,8 @@ def _decode_upload(files) -> list[tuple[str, bytes]]:
     for entry in entries:
         if isinstance(entry, dict):
             name = entry.get("name") or entry.get("filename") or "article.docx"
-            b64 = (entry.get("data") or entry.get("content") or entry.get("b64")
-                   or entry.get("base64") or entry.get("file") or "")
+            b64 = (entry.get("data_base64") or entry.get("data") or entry.get("content")
+                   or entry.get("b64") or entry.get("base64") or entry.get("file") or "")
         elif isinstance(entry, str):
             name, b64 = "article.docx", entry
         else:
