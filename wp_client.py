@@ -47,7 +47,7 @@ async def find_category_id(ctx, base_url: str, headers: dict, name: str,
         params["lang"] = lang
     try:
         resp = await ctx.http.get(f"{base_url}/wp-json/wp/v2/categories",
-                                  headers=headers, params=params)
+                                  headers=headers, params=params, timeout=15)
     except Exception:
         return None
     if resp.status_code >= 400 or not isinstance(resp.body, list):
@@ -79,7 +79,10 @@ async def create_draft(ctx, base_url: str, headers: dict, *, title: str, slug: s
         # Polylang reads the language from the query string on create
         url = f"{url}?lang={lang}"
     try:
-        resp = await ctx.http.post(url, headers=headers, json=payload)
+        # Explicit timeout: a slow WP (Polylang + Rank Math hooks on create) must
+        # fail as a diagnosable in-handler exception, not hang until the platform
+        # cancels the whole coroutine (which surfaces as an opaque INTERNAL).
+        resp = await ctx.http.post(url, headers=headers, json=payload, timeout=30)
     except Exception as e:
         return {"ok": False, "error": f"Could not reach WordPress at {base_url} ({type(e).__name__}: {e})."}
     if resp.status_code >= 400:
@@ -99,5 +102,5 @@ async def create_draft(ctx, base_url: str, headers: dict, *, title: str, slug: s
 async def ping(ctx, base_url: str, headers: dict) -> bool:
     """Cheap reachability probe of the WP REST API."""
     resp = await ctx.http.get(f"{base_url}/wp-json/wp/v2/categories",
-                              headers=headers, params={"per_page": 1})
+                              headers=headers, params={"per_page": 1}, timeout=15)
     return resp.status_code < 400

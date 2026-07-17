@@ -27,6 +27,20 @@ from models import (
 ARTICLES_COLLECTION = "articles"
 
 
+def _error(message: str, retryable: bool = False) -> ActionResult:
+    """Error result that survives the platform's dispatch boundary.
+
+    ActionResult.error() fills data with {} — an empty dict that fails
+    validate_against(data_model) at the platform boundary (Entity requires
+    id/title), documented as "warn-only in v5.0.1; hard fail post-soak".
+    data=None is the only value validate_against skips, so error results
+    must carry None, not {}.
+    """
+    result = ActionResult.error(message, retryable=retryable)
+    result.data = None
+    return result
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -86,19 +100,19 @@ async def parse_article(ctx, params: ParseArticleParams) -> ActionResult:
         try:
             data = base64.b64decode(params.file_b64)
         except Exception:
-            return ActionResult.error("file_b64 is not valid base64.")
+            return _error("file_b64 is not valid base64.")
     elif params.storage_path:
         try:
             data = await ctx.storage.download(params.storage_path)
         except Exception:
-            return ActionResult.error(f"Could not read '{params.storage_path}' from storage.")
+            return _error(f"Could not read '{params.storage_path}' from storage.")
     else:
-        return ActionResult.error("Provide either file_b64 or storage_path.")
+        return _error("Provide either file_b64 or storage_path.")
 
     try:
         record = await ingest_document(ctx, data, params.filename)
     except Exception:
-        return ActionResult.error("Not a readable .docx file.")
+        return _error("Not a readable .docx file.")
 
     article = record["article"]
     warnings = [w["message"] for w in record["warnings"]]
@@ -172,7 +186,7 @@ async def publish_draft(ctx, params: PublishDraftParams) -> ActionResult:
         import traceback
         tb = traceback.format_exc(limit=6)
         await ctx.log(f"publish_draft: crashed: {type(e).__name__}: {e}\n{tb}", level="error")
-        return ActionResult.error(
+        return _error(
             f"publish_draft crashed: {type(e).__name__}: {e}\n{tb}", retryable=True)
     await ctx.log(f"publish_draft: impl returned status={result.status!r}")
     return result
@@ -181,7 +195,7 @@ async def publish_draft(ctx, params: PublishDraftParams) -> ActionResult:
 async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
     doc = await _find_article_doc(ctx, params.slug)
     if doc is None:
-        return ActionResult.error(f"No parsed article with slug '{params.slug}'. Run parse_article first.")
+        return _error(f"No parsed article with slug '{params.slug}'. Run parse_article first.")
     record = doc.data
     article = record["article"]
     seo = article["seo"]
@@ -189,7 +203,7 @@ async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
     # Unresolved questions block publishing
     date = seo.get("date", "")
     if docx_parser.DATE_PLACEHOLDER_RE.search(date) and not params.resolved_date:
-        return ActionResult.error(
+        return _error(
             f"The document's date is a placeholder ('{date}') — pass resolved_date (YYYY-MM-DD).")
     publish_date = params.resolved_date or (date or None)
 
@@ -199,7 +213,7 @@ async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
         if await rules.is_auto(ctx, docx_parser.RULE_SUBHEADINGS):
             headings_confirmed = True
         else:
-            return ActionResult.error(
+            return _error(
                 "Subheadings were detected heuristically — ask the user and pass headings_confirmed.")
     if has_candidates and params.headings_confirmed is not None:
         # An explicit decision is also a training signal for the heuristic
@@ -209,12 +223,12 @@ async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
     username = await ctx.secrets.get("wp_user")
     app_password = await ctx.secrets.get("wp_app_password")
     if not all([base_url, username, app_password]):
-        return ActionResult.error(
+        return _error(
             "WordPress credentials are not configured — set wp_base_url, wp_user and wp_app_password in the extension's Secrets tab.")
     try:
         base_url = wp_client.normalize_base_url(base_url)
     except ValueError as e:
-        return ActionResult.error(str(e))
+        return _error(str(e))
     headers = wp_client.basic_auth_header(username, app_password)
 
     lang = seo.get("language") or None
@@ -239,7 +253,7 @@ async def _publish_draft_impl(ctx, params: PublishDraftParams) -> ActionResult:
     )
     await ctx.log(f"publish_draft: create_draft ok={result['ok']}")
     if not result["ok"]:
-        return ActionResult.error(result["error"], retryable=True)
+        return _error(result["error"], retryable=True)
 
     post = result["post"]
     try:
